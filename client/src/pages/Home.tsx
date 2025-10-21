@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { FileUploadZone } from '@/components/FileUploadZone';
 import { DataPreviewTable } from '@/components/DataPreviewTable';
+import { ValidationIssuesList } from '@/components/ValidationIssuesList';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Download, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { MergedRecord } from '@shared/schema';
+import type { MergedRecord, ValidationIssue } from '@shared/schema';
 import * as XLSX from 'xlsx';
 
 export default function Home() {
   const [dispatchFiles, setDispatchFiles] = useState<File[]>([]);
   const [salesFiles, setSalesFiles] = useState<File[]>([]);
   const [mergedData, setMergedData] = useState<MergedRecord[]>([]);
+  const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -46,12 +48,17 @@ export default function Home() {
       
       if (result.success && result.data) {
         setMergedData(result.data);
+        setValidationIssues(result.validationIssues || []);
         setSuccess(
           `총 ${result.totalRecords || 0}개 레코드 중 ${result.matchedRecords || 0}개가 병합되었습니다.`
         );
+        
+        const issueCount = result.validationIssues?.length || 0;
         toast({
           title: '병합 완료',
-          description: `${result.matchedRecords || 0}개의 데이터가 성공적으로 병합되었습니다.`,
+          description: issueCount > 0 
+            ? `${result.matchedRecords || 0}개의 데이터가 병합되었습니다. ${issueCount}개의 검증 이슈가 발견되었습니다.`
+            : `${result.matchedRecords || 0}개의 데이터가 성공적으로 병합되었습니다.`,
         });
       } else {
         throw new Error(result.error || '데이터 병합에 실패했습니다.');
@@ -96,6 +103,7 @@ export default function Home() {
     setDispatchFiles([]);
     setSalesFiles([]);
     setMergedData([]);
+    setValidationIssues([]);
     setError(null);
     setSuccess(null);
   };
@@ -186,22 +194,28 @@ export default function Home() {
             )}
           </div>
 
-          {mergedData.length > 0 && (
+          {(mergedData.length > 0 || validationIssues.length > 0) && (
             <div className="space-y-6">
-              <DataPreviewTable data={mergedData} />
+              <ValidationIssuesList issues={validationIssues} />
+              
+              {mergedData.length > 0 && (
+                <>
+                  <DataPreviewTable data={mergedData} />
 
-              <div className="flex justify-center">
-                <Button
-                  onClick={downloadExcel}
-                  size="lg"
-                  variant="default"
-                  className="min-w-64"
-                  data-testid="button-download"
-                >
-                  <Download className="mr-2 h-5 w-5" />
-                  통합 엑셀 파일 다운로드
-                </Button>
-              </div>
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={downloadExcel}
+                      size="lg"
+                      variant="default"
+                      className="min-w-64"
+                      data-testid="button-download"
+                    >
+                      <Download className="mr-2 h-5 w-5" />
+                      통합 엑셀 파일 다운로드
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

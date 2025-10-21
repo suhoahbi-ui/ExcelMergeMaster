@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import type { MergedRecord, ExcelProcessResult } from '@shared/schema';
+import type { MergedRecord, ExcelProcessResult, ValidationIssue } from '@shared/schema';
 
 interface DispatchRecord {
   번호?: string | number;
@@ -77,6 +77,78 @@ export function parseExcelFile(buffer: Buffer): any[] {
   return data;
 }
 
+function validateMergedData(
+  dispatchFilesData: any[][],
+  salesFileData: any[],
+  dispatchMap: Map<string, DispatchRecord>,
+  salesMap: Map<string, SalesRecord>
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const seenCargoNumbers = new Set<string>();
+  
+  dispatchFilesData.forEach((dispatchData, fileIndex) => {
+    dispatchData.forEach((row, rowIndex) => {
+      const cargoNumberKey = findColumnKey(row, ['번호', 'number', '화물번호']);
+      const cargoNumber = cargoNumberKey ? normalizeValue(row[cargoNumberKey]) : '';
+      
+      if (!cargoNumber) {
+        issues.push({
+          type: 'error',
+          category: 'missing_cargo_number',
+          message: `배차내역 파일 ${fileIndex + 1}의 ${rowIndex + 1}행: 화물번호가 누락되었습니다.`,
+          rowIndex,
+        });
+      } else if (seenCargoNumbers.has(cargoNumber)) {
+        issues.push({
+          type: 'warning',
+          category: 'duplicate_cargo_number',
+          message: `중복된 화물번호: ${cargoNumber}`,
+          cargoNumber,
+          rowIndex,
+        });
+      } else {
+        seenCargoNumbers.add(cargoNumber);
+      }
+    });
+  });
+  
+  salesFileData.forEach((row, rowIndex) => {
+    const cargoNumberKey = findColumnKey(row, ['화물번호', 'number', '번호']);
+    const cargoNumber = cargoNumberKey ? normalizeValue(row[cargoNumberKey]) : '';
+    
+    if (!cargoNumber) {
+      issues.push({
+        type: 'error',
+        category: 'missing_cargo_number',
+        message: `매출리스트의 ${rowIndex + 1}행: 화물번호가 누락되었습니다.`,
+        rowIndex,
+      });
+    }
+    
+    const requiredFields = [
+      { keys: ['상차지', 'pickup', 'origin'], name: '상차지' },
+      { keys: ['하차지', 'dropoff', 'destination'], name: '하차지' },
+      { keys: ['고객명', 'customer', 'name'], name: '고객명' }
+    ];
+    
+    requiredFields.forEach(({ keys, name }) => {
+      const key = findColumnKey(row, keys);
+      const value = key ? normalizeValue(row[key]) : '';
+      if (!value && cargoNumber) {
+        issues.push({
+          type: 'warning',
+          category: 'missing_required_field',
+          message: `화물번호 ${cargoNumber}: ${name} 정보가 누락되었습니다.`,
+          cargoNumber,
+          field: name,
+        });
+      }
+    });
+  });
+  
+  return issues;
+}
+
 export function mergeExcelData(
   dispatchFilesData: any[][],
   salesFileData: any[]
@@ -132,6 +204,8 @@ export function mergeExcelData(
       });
     }
     
+    const validationIssues = validateMergedData(dispatchFilesData, salesFileData, dispatchMap, salesMap);
+    
     const mergedRecords: MergedRecord[] = [];
     const allCargoNumbers = new Set([
       ...Array.from(dispatchMap.keys()),
@@ -165,6 +239,7 @@ export function mergeExcelData(
       totalRecords: allCargoNumbers.size,
       matchedRecords: matchedCount,
       unmatchedRecords: allCargoNumbers.size - matchedCount,
+      validationIssues,
     };
   } catch (error) {
     return {

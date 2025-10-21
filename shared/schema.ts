@@ -14,12 +14,22 @@ export const mergedRecordSchema = z.object({
 
 export type MergedRecord = z.infer<typeof mergedRecordSchema>;
 
+export interface ValidationIssue {
+  type: 'warning' | 'error';
+  category: 'missing_cargo_number' | 'duplicate_cargo_number' | 'missing_required_field' | 'invalid_date_format';
+  message: string;
+  rowIndex?: number;
+  cargoNumber?: string;
+  field?: string;
+}
+
 export interface ExcelProcessResult {
   success: boolean;
   data?: MergedRecord[];
   totalRecords?: number;
   matchedRecords?: number;
   unmatchedRecords?: number;
+  validationIssues?: ValidationIssue[];
   error?: string;
 }
 

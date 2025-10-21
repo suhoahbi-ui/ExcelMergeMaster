@@ -80,6 +80,13 @@ function normalizeCargoNumber(value: any): string {
   return String(value).replace(/\D/g, '');
 }
 
+function extractCommission(feeValue: any): string {
+  if (!feeValue) return '';
+  const str = String(feeValue);
+  const match = str.match(/\[([^\]]+)\]/);
+  return match ? match[1].trim() : '';
+}
+
 function findColumnKey(obj: any, possibleKeys: string[]): string | undefined {
   const objKeys = Object.keys(obj);
   
@@ -241,11 +248,14 @@ export function mergeExcelData(
         
         const existing = dispatchMap.get(cargoNumber);
         if (!existing) {
+          const rawFeeValue = feeKey ? row[feeKey] : '';
+          const commission = extractCommission(rawFeeValue);
+          
           dispatchMap.set(cargoNumber, {
             번호: rawCargoNumber,
             등록일자: dateKey ? normalizeValue(row[dateKey]) : '',
             운송료: feeKey ? normalizeValue(row[feeKey]) : '',
-            수수료: '',
+            수수료: commission,
           });
         }
       }

@@ -1,3 +1,5 @@
+import { pgTable, text, serial, timestamp, jsonb, integer } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const mergedRecordSchema = z.object({
@@ -26,3 +28,23 @@ export interface UploadedFile {
   size: number;
   type: string;
 }
+
+export const savedMergedFiles = pgTable("saved_merged_files", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  totalRecords: integer("total_records").notNull(),
+  matchedRecords: integer("matched_records").notNull(),
+  unmatchedRecords: integer("unmatched_records").notNull(),
+  data: jsonb("data").notNull(),
+  sourceFiles: jsonb("source_files").notNull(),
+});
+
+export const insertSavedMergedFileSchema = createInsertSchema(savedMergedFiles).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSavedMergedFile = z.infer<typeof insertSavedMergedFileSchema>;
+export type SavedMergedFile = typeof savedMergedFiles.$inferSelect;

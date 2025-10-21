@@ -74,22 +74,6 @@ function parseNumberValue(value: any): number {
   return isNaN(num) ? 0 : num;
 }
 
-function parseFeeAndCommission(feeValue: any): { fee: string; commission: string } {
-  if (!feeValue) return { fee: '', commission: '' };
-  
-  const feeStr = String(feeValue).trim();
-  
-  const bracketMatch = feeStr.match(/^([^[\]]+)\[([^\]]+)\]$/);
-  if (bracketMatch) {
-    const [, fee, commission] = bracketMatch;
-    return {
-      fee: fee.trim(),
-      commission: commission.trim()
-    };
-  }
-  
-  return { fee: feeStr, commission: '' };
-}
 
 function normalizeCargoNumber(value: any): string {
   if (value === null || value === undefined || value === '') return '';
@@ -257,14 +241,11 @@ export function mergeExcelData(
         
         const existing = dispatchMap.get(cargoNumber);
         if (!existing) {
-          const rawFeeValue = feeKey ? normalizeValue(row[feeKey]) : '';
-          const { fee, commission } = parseFeeAndCommission(rawFeeValue);
-          
           dispatchMap.set(cargoNumber, {
             번호: rawCargoNumber,
             등록일자: dateKey ? normalizeValue(row[dateKey]) : '',
-            운송료: fee,
-            수수료: commission,
+            운송료: feeKey ? normalizeValue(row[feeKey]) : '',
+            수수료: '',
           });
         }
       }

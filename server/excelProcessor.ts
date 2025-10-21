@@ -251,6 +251,10 @@ export function mergeExcelData(
           const rawFeeValue = feeKey ? row[feeKey] : '';
           const commission = extractCommission(rawFeeValue);
           
+          if (rawCargoNumber === '350214262' || rawCargoNumber === '350457268' || rawCargoNumber === '350744967') {
+            console.log(`수수료 체크 - 화물번호: ${rawCargoNumber}, 원본값: "${rawFeeValue}", 추출된수수료: "${commission}"`);
+          }
+          
           dispatchMap.set(cargoNumber, {
             번호: rawCargoNumber,
             등록일자: dateKey ? normalizeValue(row[dateKey]) : '',

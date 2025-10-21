@@ -156,15 +156,6 @@ export function parseExcelFile(buffer: Buffer): any[] {
   return data;
 }
 
-function isRowEmpty(row: any): boolean {
-  const values = Object.values(row);
-  return values.every(v => {
-    if (v === null || v === undefined) return true;
-    const str = String(v).trim();
-    return str === '';
-  });
-}
-
 function validateMergedData(
   dispatchFilesData: any[][],
   salesFileData: any[],
@@ -174,16 +165,12 @@ function validateMergedData(
   salesFileName: string
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
+  const seenCargoNumbers = new Set<string>();
   
   dispatchFilesData.forEach((dispatchData, fileIndex) => {
     const fileName = dispatchFileNames[fileIndex] || `파일${fileIndex + 1}`;
-    const seenCargoNumbers = new Map<string, number>();
     
     dispatchData.forEach((row, rowIndex) => {
-      if (isRowEmpty(row)) {
-        return;
-      }
-      
       const cargoNumberKey = findColumnKey(row, ['화물번호', '번호', 'number']);
       const rawCargoNumber = cargoNumberKey ? normalizeValue(row[cargoNumberKey]) : '';
       const cargoNumber = normalizeCargoNumber(rawCargoNumber);
@@ -195,31 +182,21 @@ function validateMergedData(
           message: `${fileName}의 ${rowIndex + 2}행: 화물번호가 누락되었습니다.`,
           rowIndex,
         });
+      } else if (seenCargoNumbers.has(cargoNumber)) {
+        issues.push({
+          type: 'warning',
+          category: 'duplicate_cargo_number',
+          message: `${fileName}의 ${rowIndex + 2}행: 중복된 화물번호 ${rawCargoNumber}`,
+          cargoNumber: rawCargoNumber,
+          rowIndex,
+        });
       } else {
-        const lastSeenRow = seenCargoNumbers.get(cargoNumber);
-        if (lastSeenRow !== undefined && lastSeenRow === rowIndex - 1) {
-          return;
-        }
-        
-        if (seenCargoNumbers.has(cargoNumber)) {
-          issues.push({
-            type: 'warning',
-            category: 'duplicate_cargo_number',
-            message: `${fileName}의 ${rowIndex + 2}행: 중복된 화물번호 ${rawCargoNumber}`,
-            cargoNumber: rawCargoNumber,
-            rowIndex,
-          });
-        }
-        seenCargoNumbers.set(cargoNumber, rowIndex);
+        seenCargoNumbers.add(cargoNumber);
       }
     });
   });
   
   salesFileData.forEach((row, rowIndex) => {
-    if (isRowEmpty(row)) {
-      return;
-    }
-    
     const cargoNumberKey = findColumnKey(row, ['화물번호', '번호', 'number']);
     const rawCargoNumber = cargoNumberKey ? normalizeValue(row[cargoNumberKey]) : '';
     const cargoNumber = normalizeCargoNumber(rawCargoNumber);
@@ -268,8 +245,6 @@ export function mergeExcelData(
     
     for (const dispatchData of dispatchFilesData) {
       for (const row of dispatchData) {
-        if (isRowEmpty(row)) continue;
-        
         const numberKey = findColumnKey(row, ['화물번호', '번호', 'no', 'number']);
         const dateKey = findColumnKey(row, ['등록일자', '일자', 'date', '날짜']);
         const feeKey = findColumnKey(row, ['운송료', '운송비', 'fee']);
@@ -297,7 +272,6 @@ export function mergeExcelData(
     
     const salesMap = new Map<string, SalesRecord>();
     for (const row of salesFileData) {
-      if (isRowEmpty(row)) continue;
       
       const numberKey = findColumnKey(row, ['화물번호', '번호', 'no', 'number']);
       const loadKey = findColumnKey(row, ['상차지', '상차', 'loading']);

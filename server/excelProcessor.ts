@@ -247,20 +247,18 @@ export function mergeExcelData(
         if (!cargoNumber) continue;
         
         const existing = dispatchMap.get(cargoNumber);
+        const rawFeeValue = feeKey ? row[feeKey] : '';
+        const commission = extractCommission(rawFeeValue);
+        
         if (!existing) {
-          const rawFeeValue = feeKey ? row[feeKey] : '';
-          const commission = extractCommission(rawFeeValue);
-          
-          if (rawCargoNumber === '350214262' || rawCargoNumber === '350457268' || rawCargoNumber === '350744967') {
-            console.log(`수수료 체크 - 화물번호: ${rawCargoNumber}, 원본값: "${rawFeeValue}", 추출된수수료: "${commission}"`);
-          }
-          
           dispatchMap.set(cargoNumber, {
             번호: rawCargoNumber,
             등록일자: dateKey ? normalizeValue(row[dateKey]) : '',
             운송료: feeKey ? normalizeValue(row[feeKey]) : '',
             수수료: commission,
           });
+        } else if (commission && !existing.수수료) {
+          existing.수수료 = commission;
         }
       }
     }

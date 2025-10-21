@@ -10,6 +10,7 @@ export const mergedRecordSchema = z.object({
   고객명: z.string(),
   운송료: z.union([z.string(), z.number()]),
   수수료: z.union([z.string(), z.number()]),
+  합계: z.union([z.string(), z.number()]),
 });
 
 export type MergedRecord = z.infer<typeof mergedRecordSchema>;

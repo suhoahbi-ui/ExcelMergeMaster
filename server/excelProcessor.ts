@@ -67,6 +67,30 @@ function normalizeNumber(value: any): string {
   return num.toLocaleString('ko-KR');
 }
 
+function parseNumberValue(value: any): number {
+  if (value === null || value === undefined || value === '') return 0;
+  const numStr = String(value).replace(/[,\s()]/g, '');
+  const num = parseFloat(numStr);
+  return isNaN(num) ? 0 : num;
+}
+
+function parseFeeAndCommission(feeValue: any): { fee: string; commission: string } {
+  if (!feeValue) return { fee: '', commission: '' };
+  
+  const feeStr = String(feeValue).trim();
+  
+  const bracketMatch = feeStr.match(/^([^[\]]+)\[([^\]]+)\]$/);
+  if (bracketMatch) {
+    const [, fee, commission] = bracketMatch;
+    return {
+      fee: fee.trim(),
+      commission: commission.trim()
+    };
+  }
+  
+  return { fee: feeStr, commission: '' };
+}
+
 function normalizeCargoNumber(value: any): string {
   if (value === null || value === undefined || value === '') return '';
   return String(value).replace(/\D/g, '');
@@ -224,7 +248,6 @@ export function mergeExcelData(
         const numberKey = findColumnKey(row, ['화물번호', '번호', 'no', 'number']);
         const dateKey = findColumnKey(row, ['등록일자', '일자', 'date', '날짜']);
         const feeKey = findColumnKey(row, ['운송료', '운송비', 'fee']);
-        const commissionKey = findColumnKey(row, ['수수료', 'commission']);
         
         if (!numberKey) continue;
         
@@ -234,11 +257,14 @@ export function mergeExcelData(
         
         const existing = dispatchMap.get(cargoNumber);
         if (!existing) {
+          const rawFeeValue = feeKey ? normalizeValue(row[feeKey]) : '';
+          const { fee, commission } = parseFeeAndCommission(rawFeeValue);
+          
           dispatchMap.set(cargoNumber, {
             번호: rawCargoNumber,
             등록일자: dateKey ? normalizeValue(row[dateKey]) : '',
-            운송료: feeKey ? normalizeValue(row[feeKey]) : '',
-            수수료: commissionKey ? normalizeValue(row[commissionKey]) : '',
+            운송료: fee,
+            수수료: commission,
           });
         }
       }
@@ -295,6 +321,10 @@ export function mergeExcelData(
         console.log(`Date normalized: "${dateValue}" -> "${normalizedDate}"`);
       }
       
+      const feeValue = parseNumberValue(dispatch?.운송료);
+      const commissionValue = parseNumberValue(dispatch?.수수료);
+      const totalValue = feeValue + commissionValue;
+      
       mergedRecords.push({
         화물번호: String(dispatch?.번호 || sales?.화물번호 || cargoNumber),
         등록일자: normalizedDate,
@@ -303,6 +333,7 @@ export function mergeExcelData(
         고객명: sales?.고객명 || '',
         운송료: normalizeNumber(dispatch?.운송료),
         수수료: normalizeNumber(dispatch?.수수료),
+        합계: totalValue > 0 ? normalizeNumber(totalValue) : '',
       });
     }
     

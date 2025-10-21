@@ -174,10 +174,10 @@ function validateMergedData(
   salesFileName: string
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  const seenCargoNumbers = new Map<string, number>();
   
   dispatchFilesData.forEach((dispatchData, fileIndex) => {
     const fileName = dispatchFileNames[fileIndex] || `파일${fileIndex + 1}`;
+    const seenCargoNumbers = new Map<string, number>();
     
     dispatchData.forEach((row, rowIndex) => {
       if (isRowEmpty(row)) {
@@ -216,6 +216,10 @@ function validateMergedData(
   });
   
   salesFileData.forEach((row, rowIndex) => {
+    if (isRowEmpty(row)) {
+      return;
+    }
+    
     const cargoNumberKey = findColumnKey(row, ['화물번호', '번호', 'number']);
     const rawCargoNumber = cargoNumberKey ? normalizeValue(row[cargoNumberKey]) : '';
     const cargoNumber = normalizeCargoNumber(rawCargoNumber);

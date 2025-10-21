@@ -267,6 +267,7 @@ export function mergeExcelData(
             console.log(`  Parsed commission: "${commission}"`);
             console.log(`  All row keys:`, Object.keys(row));
             console.log(`  Fee column key: "${feeKey}"`);
+            console.log(`  FULL ROW DATA:`, JSON.stringify(row, null, 2));
           }
           
           dispatchMap.set(cargoNumber, {

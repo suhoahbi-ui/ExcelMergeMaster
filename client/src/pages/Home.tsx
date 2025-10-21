@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { FileUploadZone } from '@/components/FileUploadZone';
 import { DataPreviewTable } from '@/components/DataPreviewTable';
 import { ValidationIssuesList } from '@/components/ValidationIssuesList';
+import { SaveFileDialog } from '@/components/SaveFileDialog';
+import { FileHistorySheet } from '@/components/FileHistorySheet';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Download, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
@@ -14,6 +16,11 @@ export default function Home() {
   const [salesFiles, setSalesFiles] = useState<File[]>([]);
   const [mergedData, setMergedData] = useState<MergedRecord[]>([]);
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [matchedRecords, setMatchedRecords] = useState(0);
+  const [unmatchedRecords, setUnmatchedRecords] = useState(0);
+  const [sourceFiles, setSourceFiles] = useState<string[]>([]);
+  const [hasMergeResult, setHasMergeResult] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -46,9 +53,17 @@ export default function Home() {
 
       const result = await response.json();
       
-      if (result.success && result.data) {
+      if (result.success && result.data !== undefined) {
         setMergedData(result.data);
         setValidationIssues(result.validationIssues || []);
+        setTotalRecords(result.totalRecords || 0);
+        setMatchedRecords(result.matchedRecords || 0);
+        setUnmatchedRecords(result.unmatchedRecords || 0);
+        setSourceFiles([
+          ...dispatchFiles.map(f => f.name),
+          ...salesFiles.map(f => f.name)
+        ]);
+        setHasMergeResult(true);
         setSuccess(
           `총 ${result.totalRecords || 0}개 레코드 중 ${result.matchedRecords || 0}개가 병합되었습니다.`
         );
@@ -104,6 +119,11 @@ export default function Home() {
     setSalesFiles([]);
     setMergedData([]);
     setValidationIssues([]);
+    setTotalRecords(0);
+    setMatchedRecords(0);
+    setUnmatchedRecords(0);
+    setSourceFiles([]);
+    setHasMergeResult(false);
     setError(null);
     setSuccess(null);
   };
@@ -112,17 +132,23 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="space-y-8">
-          <div className="text-center space-y-3">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-lg bg-primary/10 mb-2">
-              <FileSpreadsheet className="h-8 w-8 text-primary" />
+          <div className="space-y-4">
+            <div className="text-center space-y-3">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-lg bg-primary/10 mb-2">
+                <FileSpreadsheet className="h-8 w-8 text-primary" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                엑셀 파일 통합 도구
+              </h1>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                배차내역과 매출리스트 파일을 업로드하면 화물번호를 기준으로 자동 병합하여 
+                통합 엑셀 파일을 생성합니다.
+              </p>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              엑셀 파일 통합 도구
-            </h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              배차내역과 매출리스트 파일을 업로드하면 화물번호를 기준으로 자동 병합하여 
-              통합 엑셀 파일을 생성합니다.
-            </p>
+            
+            <div className="flex justify-center">
+              <FileHistorySheet />
+            </div>
           </div>
 
           {error && (
@@ -182,7 +208,7 @@ export default function Home() {
               )}
             </Button>
 
-            {mergedData.length > 0 && (
+            {hasMergeResult && (
               <Button
                 onClick={handleReset}
                 variant="outline"
@@ -194,28 +220,34 @@ export default function Home() {
             )}
           </div>
 
-          {(mergedData.length > 0 || validationIssues.length > 0) && (
+          {hasMergeResult && (
             <div className="space-y-6">
-              <ValidationIssuesList issues={validationIssues} />
+              {validationIssues.length > 0 && <ValidationIssuesList issues={validationIssues} />}
               
-              {mergedData.length > 0 && (
-                <>
-                  <DataPreviewTable data={mergedData} />
+              {mergedData.length > 0 && <DataPreviewTable data={mergedData} />}
 
-                  <div className="flex justify-center">
-                    <Button
-                      onClick={downloadExcel}
-                      size="lg"
-                      variant="default"
-                      className="min-w-64"
-                      data-testid="button-download"
-                    >
-                      <Download className="mr-2 h-5 w-5" />
-                      통합 엑셀 파일 다운로드
-                    </Button>
-                  </div>
-                </>
-              )}
+              <div className="flex justify-center gap-4 flex-wrap">
+                {mergedData.length > 0 && (
+                  <Button
+                    onClick={downloadExcel}
+                    size="lg"
+                    variant="default"
+                    data-testid="button-download"
+                  >
+                    <Download className="mr-2 h-5 w-5" />
+                    엑셀 파일 다운로드
+                  </Button>
+                )}
+                
+                <SaveFileDialog
+                  mergedData={mergedData}
+                  validationIssues={validationIssues}
+                  totalRecords={totalRecords}
+                  matchedRecords={matchedRecords}
+                  unmatchedRecords={unmatchedRecords}
+                  sourceFiles={sourceFiles}
+                />
+              </div>
             </div>
           )}
         </div>

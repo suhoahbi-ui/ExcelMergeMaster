@@ -28,17 +28,32 @@ function normalizeDate(value: any): string {
   if (!value) return '';
   const dateStr = String(value).trim();
   
-  const dateMatch = dateStr.match(/(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/);
-  if (dateMatch) {
-    const [, year, month, day] = dateMatch;
+  const fullYearMatch = dateStr.match(/(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/);
+  if (fullYearMatch) {
+    const [, year, month, day] = fullYearMatch;
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
   
-  const shortDateMatch = dateStr.match(/(\d{2})[-.\/](\d{1,2})[-.\/](\d{1,2})/);
-  if (shortDateMatch) {
-    const [, year, month, day] = shortDateMatch;
-    const fullYear = parseInt(year) < 50 ? `20${year}` : `19${year}`;
-    return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  const monthDayYearMatch = dateStr.match(/(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{2,4})/);
+  if (monthDayYearMatch) {
+    const [, part1, part2, part3] = monthDayYearMatch;
+    
+    if (part3.length === 4) {
+      return `${part3}-${part1.padStart(2, '0')}-${part2.padStart(2, '0')}`;
+    }
+    
+    const fullYear = parseInt(part3) < 50 ? `20${part3}` : `19${part3}`;
+    
+    const p1 = parseInt(part1);
+    const p2 = parseInt(part2);
+    
+    if (p1 > 12 && p2 <= 12) {
+      return `${fullYear}-${part2.padStart(2, '0')}-${part1.padStart(2, '0')}`;
+    } else if (p1 <= 12 && p2 > 12) {
+      return `${fullYear}-${part1.padStart(2, '0')}-${part2.padStart(2, '0')}`;
+    } else {
+      return `${fullYear}-${part1.padStart(2, '0')}-${part2.padStart(2, '0')}`;
+    }
   }
   
   return dateStr;
@@ -274,10 +289,15 @@ export function mergeExcelData(
       const sales = salesMap.get(cargoNumber);
       
       const dateValue = dispatch?.등록일자 || sales?.접수시간 || sales?.배차시간 || '';
+      const normalizedDate = normalizeDate(dateValue);
+      
+      if (dateValue && dateValue !== normalizedDate) {
+        console.log(`Date normalized: "${dateValue}" -> "${normalizedDate}"`);
+      }
       
       mergedRecords.push({
         화물번호: String(dispatch?.번호 || sales?.화물번호 || cargoNumber),
-        등록일자: normalizeDate(dateValue),
+        등록일자: normalizedDate,
         상차지: sales?.상차지 || '',
         하차지: sales?.하차지 || '',
         고객명: sales?.고객명 || '',
@@ -291,6 +311,11 @@ export function mergeExcelData(
       if (!a.등록일자) return 1;
       if (!b.등록일자) return -1;
       return a.등록일자.localeCompare(b.등록일자);
+    });
+    
+    console.log('First 5 records after sorting:');
+    mergedRecords.slice(0, 5).forEach((r, i) => {
+      console.log(`  ${i + 1}. 화물번호: ${r.화물번호}, 등록일자: ${r.등록일자}`);
     });
     
     const matchedCount = mergedRecords.filter(

@@ -285,20 +285,6 @@ export function mergeExcelData(
           const rawFeeValue = feeKey ? normalizeValue(row[feeKey]) : '';
           const { fee, commission } = parseFeeAndCommission(rawFeeValue);
           
-          if (rawCargoNumber === '350214262' || rawCargoNumber === '350457268' || rawCargoNumber === '350744967') {
-            console.log(`[DEBUG] Cargo ${rawCargoNumber}:`);
-            console.log(`  Raw fee value: "${rawFeeValue}"`);
-            console.log(`  Parsed fee: "${fee}"`);
-            console.log(`  Parsed commission: "${commission}"`);
-            console.log(`  All row keys:`, Object.keys(row));
-            console.log(`  Fee column key: "${feeKey}"`);
-            const rowValues: any = {};
-            Object.keys(row).forEach(key => {
-              rowValues[key] = String(row[key]).substring(0, 100);
-            });
-            console.log(`  Row values (truncated):`, rowValues);
-          }
-          
           dispatchMap.set(cargoNumber, {
             번호: rawCargoNumber,
             등록일자: dateKey ? normalizeValue(row[dateKey]) : '',

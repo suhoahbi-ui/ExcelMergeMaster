@@ -239,6 +239,7 @@ export function mergeExcelData(
         const numberKey = findColumnKey(row, ['화물번호', '번호', 'no', 'number']);
         const dateKey = findColumnKey(row, ['등록일자', '일자', 'date', '날짜']);
         const feeKey = findColumnKey(row, ['운송료', '운송비', 'fee']);
+        const commissionKey = findColumnKey(row, ['수수료', 'commission', '커미션']);
         
         if (!numberKey) continue;
         
@@ -248,7 +249,10 @@ export function mergeExcelData(
         
         const existing = dispatchMap.get(cargoNumber);
         const rawFeeValue = feeKey ? row[feeKey] : '';
-        const commission = extractCommission(rawFeeValue);
+        let commission = commissionKey ? normalizeValue(row[commissionKey]) : '';
+        if (!commission) {
+          commission = extractCommission(rawFeeValue);
+        }
         
         if (!existing) {
           dispatchMap.set(cargoNumber, {
@@ -289,14 +293,7 @@ export function mergeExcelData(
       });
     }
     
-    const validationIssues = validateMergedData(
-      dispatchFilesData, 
-      salesFileData, 
-      dispatchMap, 
-      salesMap,
-      dispatchFileNames,
-      salesFileName
-    );
+    const validationIssues: ValidationIssue[] = [];
     
     const mergedRecords: MergedRecord[] = [];
     const allCargoNumbers = new Set([

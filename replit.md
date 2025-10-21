@@ -52,10 +52,15 @@ Preferred communication style: Simple, everyday language.
 - File validation for Excel formats (.xlsx, .xls)
 - 10MB file size limit per upload
 
-**Excel Processing Logic**:
-- SheetJS library for server-side Excel parsing
+**Excel Processing Logic** (server/excelProcessor.ts):
+- SheetJS library for server-side Excel parsing with merged cell support
+- **Merged Cell Handling**: Automatically expands merged cells so all rows get the same value (prevents false "missing cargo number" errors)
+- **Cargo Number Normalization**: Extracts only digits for comparison, handles various formats (350167689 = 350-167-689 = "350 167 689")
+- **Smart Column Detection**: Exact match priority ("화물번호" over "접수번호"), prevents wrong column selection
+- **Enhanced Validation Messages**: Shows actual file name, Excel row number (accounting for header), and specific cargo number values
 - Custom normalization functions for dates, numbers, and text values
-- Record matching algorithm based on cargo number (화물번호)
+- Record matching algorithm based on normalized cargo numbers
+- **Data Sorting**: Results sorted by date (등록일자) ascending, January first
 - Data transformation pipeline producing standardized 7-column output
 
 **Development Tooling**:

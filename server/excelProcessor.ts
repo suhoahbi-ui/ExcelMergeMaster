@@ -52,15 +52,32 @@ function normalizeNumber(value: any): string {
   return num.toLocaleString('ko-KR');
 }
 
+function normalizeCargoNumber(value: any): string {
+  if (value === null || value === undefined || value === '') return '';
+  return String(value).replace(/\D/g, '');
+}
+
 function findColumnKey(obj: any, possibleKeys: string[]): string | undefined {
-  for (const key of Object.keys(obj)) {
-    const normalizedKey = key.trim().toLowerCase();
-    for (const possible of possibleKeys) {
+  const objKeys = Object.keys(obj);
+  
+  for (const possible of possibleKeys) {
+    for (const key of objKeys) {
+      const normalizedKey = key.trim().toLowerCase();
+      if (normalizedKey === possible.toLowerCase()) {
+        return key;
+      }
+    }
+  }
+  
+  for (const possible of possibleKeys) {
+    for (const key of objKeys) {
+      const normalizedKey = key.trim().toLowerCase();
       if (normalizedKey.includes(possible.toLowerCase())) {
         return key;
       }
     }
   }
+  
   return undefined;
 }
 
@@ -68,6 +85,22 @@ export function parseExcelFile(buffer: Buffer): any[] {
   const workbook = XLSX.read(buffer, { type: 'buffer' });
   const firstSheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[firstSheetName];
+  
+  if (worksheet['!merges']) {
+    for (const merge of worksheet['!merges']) {
+      const topLeftCell = XLSX.utils.encode_cell({ r: merge.s.r, c: merge.s.c });
+      const topLeftValue = worksheet[topLeftCell]?.v;
+      
+      for (let row = merge.s.r; row <= merge.e.r; row++) {
+        for (let col = merge.s.c; col <= merge.e.c; col++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+          if (!worksheet[cellAddress]) {
+            worksheet[cellAddress] = { v: topLeftValue, t: worksheet[topLeftCell]?.t || 's' };
+          }
+        }
+      }
+    }
+  }
   
   const data = XLSX.utils.sheet_to_json(worksheet, { 
     raw: false,
@@ -81,29 +114,34 @@ function validateMergedData(
   dispatchFilesData: any[][],
   salesFileData: any[],
   dispatchMap: Map<string, DispatchRecord>,
-  salesMap: Map<string, SalesRecord>
+  salesMap: Map<string, SalesRecord>,
+  dispatchFileNames: string[],
+  salesFileName: string
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const seenCargoNumbers = new Set<string>();
   
   dispatchFilesData.forEach((dispatchData, fileIndex) => {
+    const fileName = dispatchFileNames[fileIndex] || `파일${fileIndex + 1}`;
+    
     dispatchData.forEach((row, rowIndex) => {
-      const cargoNumberKey = findColumnKey(row, ['번호', 'number', '화물번호']);
-      const cargoNumber = cargoNumberKey ? normalizeValue(row[cargoNumberKey]) : '';
+      const cargoNumberKey = findColumnKey(row, ['화물번호', '번호', 'number']);
+      const rawCargoNumber = cargoNumberKey ? normalizeValue(row[cargoNumberKey]) : '';
+      const cargoNumber = normalizeCargoNumber(rawCargoNumber);
       
       if (!cargoNumber) {
         issues.push({
           type: 'error',
           category: 'missing_cargo_number',
-          message: `배차내역 파일 ${fileIndex + 1}의 ${rowIndex + 1}행: 화물번호가 누락되었습니다.`,
+          message: `${fileName}의 ${rowIndex + 2}행: 화물번호가 누락되었습니다.`,
           rowIndex,
         });
       } else if (seenCargoNumbers.has(cargoNumber)) {
         issues.push({
           type: 'warning',
           category: 'duplicate_cargo_number',
-          message: `중복된 화물번호: ${cargoNumber}`,
-          cargoNumber,
+          message: `${fileName}의 ${rowIndex + 2}행: 중복된 화물번호 ${rawCargoNumber}`,
+          cargoNumber: rawCargoNumber,
           rowIndex,
         });
       } else {
@@ -113,14 +151,15 @@ function validateMergedData(
   });
   
   salesFileData.forEach((row, rowIndex) => {
-    const cargoNumberKey = findColumnKey(row, ['화물번호', 'number', '번호']);
-    const cargoNumber = cargoNumberKey ? normalizeValue(row[cargoNumberKey]) : '';
+    const cargoNumberKey = findColumnKey(row, ['화물번호', '번호', 'number']);
+    const rawCargoNumber = cargoNumberKey ? normalizeValue(row[cargoNumberKey]) : '';
+    const cargoNumber = normalizeCargoNumber(rawCargoNumber);
     
     if (!cargoNumber) {
       issues.push({
         type: 'error',
         category: 'missing_cargo_number',
-        message: `매출리스트의 ${rowIndex + 1}행: 화물번호가 누락되었습니다.`,
+        message: `${salesFileName}의 ${rowIndex + 2}행: 화물번호가 누락되었습니다.`,
         rowIndex,
       });
     }
@@ -138,8 +177,8 @@ function validateMergedData(
         issues.push({
           type: 'warning',
           category: 'missing_required_field',
-          message: `화물번호 ${cargoNumber}: ${name} 정보가 누락되었습니다.`,
-          cargoNumber,
+          message: `${salesFileName}의 ${rowIndex + 2}행 - 화물번호 ${rawCargoNumber}: ${name} 정보가 누락되었습니다.`,
+          cargoNumber: rawCargoNumber,
           field: name,
         });
       }
@@ -151,27 +190,30 @@ function validateMergedData(
 
 export function mergeExcelData(
   dispatchFilesData: any[][],
-  salesFileData: any[]
+  salesFileData: any[],
+  dispatchFileNames: string[],
+  salesFileName: string
 ): ExcelProcessResult {
   try {
     const dispatchMap = new Map<string, DispatchRecord>();
     
     for (const dispatchData of dispatchFilesData) {
       for (const row of dispatchData) {
-        const numberKey = findColumnKey(row, ['번호', 'no', 'number']);
+        const numberKey = findColumnKey(row, ['화물번호', '번호', 'no', 'number']);
         const dateKey = findColumnKey(row, ['등록일자', '일자', 'date', '날짜']);
         const feeKey = findColumnKey(row, ['운송료', '운송비', 'fee']);
         const commissionKey = findColumnKey(row, ['수수료', 'commission']);
         
         if (!numberKey) continue;
         
-        const cargoNumber = normalizeValue(row[numberKey]);
+        const rawCargoNumber = normalizeValue(row[numberKey]);
+        const cargoNumber = normalizeCargoNumber(rawCargoNumber);
         if (!cargoNumber) continue;
         
         const existing = dispatchMap.get(cargoNumber);
         if (!existing) {
           dispatchMap.set(cargoNumber, {
-            번호: cargoNumber,
+            번호: rawCargoNumber,
             등록일자: dateKey ? normalizeValue(row[dateKey]) : '',
             운송료: feeKey ? normalizeValue(row[feeKey]) : '',
             수수료: commissionKey ? normalizeValue(row[commissionKey]) : '',
@@ -191,11 +233,12 @@ export function mergeExcelData(
       
       if (!numberKey) continue;
       
-      const cargoNumber = normalizeValue(row[numberKey]);
+      const rawCargoNumber = normalizeValue(row[numberKey]);
+      const cargoNumber = normalizeCargoNumber(rawCargoNumber);
       if (!cargoNumber) continue;
       
       salesMap.set(cargoNumber, {
-        화물번호: cargoNumber,
+        화물번호: rawCargoNumber,
         상차지: loadKey ? normalizeValue(row[loadKey]) : '',
         하차지: unloadKey ? normalizeValue(row[unloadKey]) : '',
         고객명: customerKey ? normalizeValue(row[customerKey]) : '',
@@ -204,7 +247,14 @@ export function mergeExcelData(
       });
     }
     
-    const validationIssues = validateMergedData(dispatchFilesData, salesFileData, dispatchMap, salesMap);
+    const validationIssues = validateMergedData(
+      dispatchFilesData, 
+      salesFileData, 
+      dispatchMap, 
+      salesMap,
+      dispatchFileNames,
+      salesFileName
+    );
     
     const mergedRecords: MergedRecord[] = [];
     const allCargoNumbers = new Set([
@@ -219,7 +269,7 @@ export function mergeExcelData(
       const dateValue = dispatch?.등록일자 || sales?.접수시간 || sales?.배차시간 || '';
       
       mergedRecords.push({
-        화물번호: cargoNumber,
+        화물번호: String(dispatch?.번호 || sales?.화물번호 || cargoNumber),
         등록일자: normalizeDate(dateValue),
         상차지: sales?.상차지 || '',
         하차지: sales?.하차지 || '',
@@ -229,8 +279,18 @@ export function mergeExcelData(
       });
     }
     
+    mergedRecords.sort((a, b) => {
+      if (!a.등록일자 && !b.등록일자) return 0;
+      if (!a.등록일자) return 1;
+      if (!b.등록일자) return -1;
+      return a.등록일자.localeCompare(b.등록일자);
+    });
+    
     const matchedCount = mergedRecords.filter(
-      r => dispatchMap.has(r.화물번호) && salesMap.has(r.화물번호)
+      r => {
+        const normalized = normalizeCargoNumber(r.화물번호);
+        return dispatchMap.has(normalized) && salesMap.has(normalized);
+      }
     ).length;
     
     return {

@@ -55,10 +55,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parseExcelFile(file.buffer)
       );
       
-      const dispatchFileNames = files.dispatchFiles.map(file => file.originalname);
+      const dispatchFileNames = files.dispatchFiles.map(file => {
+        const name = file.originalname;
+        console.log('Dispatch file name received:', name, 'Buffer length:', name.length);
+        return Buffer.from(name, 'latin1').toString('utf8');
+      });
       
       const salesFileData = parseExcelFile(files.salesFiles[0].buffer);
-      const salesFileName = files.salesFiles[0].originalname;
+      const rawSalesFileName = files.salesFiles[0].originalname;
+      const salesFileName = Buffer.from(rawSalesFileName, 'latin1').toString('utf8');
+      
+      console.log('Sales file name received:', rawSalesFileName);
+      console.log('Sales file name decoded:', salesFileName);
+      console.log('Dispatch file names decoded:', dispatchFileNames);
       
       const result = mergeExcelData(
         dispatchFilesData, 

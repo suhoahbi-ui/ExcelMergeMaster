@@ -161,7 +161,7 @@ function isRowEmpty(row: any): boolean {
   return values.every(v => {
     if (v === null || v === undefined) return true;
     const str = String(v).trim();
-    return str === '' || str === '0';
+    return str === '';
   });
 }
 

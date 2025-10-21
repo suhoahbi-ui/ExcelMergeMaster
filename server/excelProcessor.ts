@@ -134,11 +134,11 @@ export function mergeExcelData(
     
     const mergedRecords: MergedRecord[] = [];
     const allCargoNumbers = new Set([
-      ...dispatchMap.keys(),
-      ...salesMap.keys(),
+      ...Array.from(dispatchMap.keys()),
+      ...Array.from(salesMap.keys()),
     ]);
     
-    for (const cargoNumber of allCargoNumbers) {
+    for (const cargoNumber of Array.from(allCargoNumbers)) {
       const dispatch = dispatchMap.get(cargoNumber);
       const sales = salesMap.get(cargoNumber);
       

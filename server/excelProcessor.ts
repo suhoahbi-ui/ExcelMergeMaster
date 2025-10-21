@@ -86,16 +86,23 @@ export function parseExcelFile(buffer: Buffer): any[] {
   const firstSheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[firstSheetName];
   
-  if (worksheet['!merges']) {
+  if (worksheet['!merges'] && Array.isArray(worksheet['!merges'])) {
     for (const merge of worksheet['!merges']) {
+      if (!merge || !merge.s || !merge.e) continue;
+      
       const topLeftCell = XLSX.utils.encode_cell({ r: merge.s.r, c: merge.s.c });
-      const topLeftValue = worksheet[topLeftCell]?.v;
+      const topLeftCellData = worksheet[topLeftCell];
+      
+      if (!topLeftCellData) continue;
+      
+      const topLeftValue = topLeftCellData.v;
+      const cellType = topLeftCellData.t || 's';
       
       for (let row = merge.s.r; row <= merge.e.r; row++) {
         for (let col = merge.s.c; col <= merge.e.c; col++) {
           const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
-          if (!worksheet[cellAddress]) {
-            worksheet[cellAddress] = { v: topLeftValue, t: worksheet[topLeftCell]?.t || 's' };
+          if (!worksheet[cellAddress] && topLeftValue !== undefined) {
+            worksheet[cellAddress] = { v: topLeftValue, t: cellType };
           }
         }
       }

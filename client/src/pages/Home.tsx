@@ -172,7 +172,7 @@ export default function Home() {
               files={dispatchFiles}
               onFilesChange={setDispatchFiles}
               title="배차내역 파일"
-              description="1월~6월 등 여러 개의 배차내역 파일을 업로드하세요"
+              description=""
               stepNumber="1단계"
               multiple
             />
@@ -181,7 +181,7 @@ export default function Home() {
               files={salesFiles}
               onFilesChange={setSalesFiles}
               title="매출리스트 파일"
-              description="25년상반기매출 리스트 파일을 업로드하세요"
+              description=""
               stepNumber="2단계"
               multiple={false}
             />

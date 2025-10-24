@@ -25,11 +25,13 @@ export function DataPreviewTable({ data }: DataPreviewTableProps) {
     const feeTotal = data.reduce((sum, record) => sum + parseKoreanNumber(record.운송료), 0);
     const commissionTotal = data.reduce((sum, record) => sum + parseKoreanNumber(record.수수료), 0);
     const grandTotal = data.reduce((sum, record) => sum + parseKoreanNumber(record.합계), 0);
+    const vatIncludedTotal = data.reduce((sum, record) => sum + parseKoreanNumber(record.VAT포함), 0);
     
     return {
       운송료: feeTotal.toLocaleString('ko-KR'),
       수수료: commissionTotal.toLocaleString('ko-KR'),
       합계: grandTotal.toLocaleString('ko-KR'),
+      VAT포함: vatIncludedTotal.toLocaleString('ko-KR'),
     };
   }, [data]);
 
@@ -47,7 +49,7 @@ export function DataPreviewTable({ data }: DataPreviewTableProps) {
             {data.length}개 행
           </Badge>
           <Badge variant="secondary" className="text-xs">
-            8개 항목
+            9개 항목
           </Badge>
         </div>
       </CardHeader>
@@ -64,6 +66,7 @@ export function DataPreviewTable({ data }: DataPreviewTableProps) {
                 <TableHead className="font-semibold whitespace-nowrap">운송료</TableHead>
                 <TableHead className="font-semibold whitespace-nowrap">수수료</TableHead>
                 <TableHead className="font-semibold whitespace-nowrap">합계</TableHead>
+                <TableHead className="font-semibold whitespace-nowrap">VAT포함</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -81,6 +84,7 @@ export function DataPreviewTable({ data }: DataPreviewTableProps) {
                   <TableCell className="text-right">{record.운송료}</TableCell>
                   <TableCell className="text-right">{record.수수료}</TableCell>
                   <TableCell className="text-right font-semibold">{record.합계}</TableCell>
+                  <TableCell className="text-right font-semibold">{record.VAT포함}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -90,6 +94,7 @@ export function DataPreviewTable({ data }: DataPreviewTableProps) {
                 <TableCell className="text-right font-semibold">{totals.운송료}</TableCell>
                 <TableCell className="text-right font-semibold">{totals.수수료}</TableCell>
                 <TableCell className="text-right font-semibold">{totals.합계}</TableCell>
+                <TableCell className="text-right font-semibold">{totals.VAT포함}</TableCell>
               </TableRow>
             </TableFooter>
           </Table>

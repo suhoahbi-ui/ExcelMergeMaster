@@ -315,6 +315,7 @@ export function mergeExcelData(
       const feeValue = parseNumberValue(dispatch?.운송료);
       const commissionValue = parseNumberValue(dispatch?.수수료);
       const totalValue = feeValue + commissionValue;
+      const vatIncludedValue = totalValue * 1.1;
       
       mergedRecords.push({
         화물번호: String(dispatch?.번호 || sales?.화물번호 || cargoNumber),
@@ -325,6 +326,7 @@ export function mergeExcelData(
         운송료: normalizeNumber(dispatch?.운송료),
         수수료: normalizeNumber(dispatch?.수수료),
         합계: totalValue > 0 ? normalizeNumber(totalValue) : '',
+        VAT포함: vatIncludedValue > 0 ? normalizeNumber(vatIncludedValue) : '',
       });
     }
     
